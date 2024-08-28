@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus Reservation Chatbot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: purple;
+            margin: 0;
+        }
+
+        .chat-container {
+            width: 400px;
+            max-width: 100%;
+            background: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: #007bff;
+            color: white;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .chat-body {
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            background-color: lavender;
+        }
+
+        .chat-footer {
+            display: flex;
+            border-top: 1px solid #ccc;
+        }
+
+        .chat-footer input {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 0;
+            outline: none;
+        }
+
+        .chat-footer button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+        }
+
+        .bot-message, .user-message {
+            margin-bottom: 10px;
+        }
+
+        .bot-message p, .user-message p {
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .bot-message p {
+            background: #007bff;
+            color: white;
+            text-align: left;
+        }
+
+        .user-message p {
+            background: #f0f0f0;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2>Bus Reservation Assistant</h2>
+        </div>
+        <div class="chat-body" id="chat-body">
+            <div class="bot-message">
+                <p>Welcome! Here are the destinations with available buses:</p>
+                <ul>
+                    <li>Hyderabad</li>
+                    <li>Vizag</li>
+                    <li>Vijayawada</li>
+                    <li>Rajahmundry</li>
+                    <li>Ongole</li>
+                    <li>Nellore</li>
+                    <li>Bangalore</li>
+                    <li>Chennai</li>
+                    <li>Thiruvananthapuram</li>
+                    <li>Kochi</li>
+                    <li>Pune</li>
+                </ul>
+                <p>Where would you like to travel?</p>
+            </div>
+        </div>
+        <div class="chat-footer">
+            <input type="text" id="user-input" placeholder="Type your message here..." onkeydown="handleKeyPress(event)">
+            <button onclick="sendMessage()">Send</button>
+            <button onclick="startVoiceRecognition()">🎤</button>
+        </div>
+    </div>
+    <script>
+        const chatBody = document.getElementById('chat-body');
+        const userInput = document.getElementById('user-input');
+
+        let step = 0;
+        let destination = '';
+        let numberOfPersons = 0;
+        let selectedBus = '';
+        let acPreference = '';
+        let seatingPreference = '';
+
+        const busData = {
+            'Hyderabad': [{bus: 'Bus 1', price: 30}, {bus: 'Bus 2', price: 35}, {bus: 'Bus 3', price: 40}],
+            'Vizag': [{bus: 'Bus 4', price: 25}, {bus: 'Bus 5', price: 28}, {bus: 'Bus 6', price: 32}],
+            'Vijayawada': [{bus: 'Bus 7', price: 20}, {bus: 'Bus 8', price: 25}, {bus: 'Bus 9', price: 30}],
+            'Rajahmundry': [{bus: 'Bus 10', price: 22}, {bus: 'Bus 11', price: 27}, {bus: 'Bus 12', price: 33}],
+            'Ongole': [{bus: 'Bus 13', price: 18}, {bus: 'Bus 14', price: 24}, {bus: 'Bus 15', price: 29}],
+            'Nellore': [{bus: 'Bus 16', price: 21}, {bus: 'Bus 17', price: 26}, {bus: 'Bus 18', price: 31}],
+            'Bangalore': [{bus: 'Bus 19', price: 40}, {bus: 'Bus 20', price: 45}, {bus: 'Bus 21', price: 50}],
+            'Chennai': [{bus: 'Bus 22', price: 35}, {bus: 'Bus 23', price: 40}, {bus: 'Bus 24', price: 45}],
+            'Thiruvananthapuram': [{bus: 'Bus 25', price: 38}, {bus: 'Bus 26', price: 43}, {bus: 'Bus 27', price: 48}],
+            'Kochi': [{bus: 'Bus 28', price: 34}, {bus: 'Bus 29', price: 39}, {bus: 'Bus 30', price: 44}],
+            'Pune': [{bus: 'Bus 31', price: 50}, {bus: 'Bus 32', price: 55}, {bus: 'Bus 33', price: 60}]
+        };
+
+        function sendMessage() {
+            const message = userInput.value.trim();
+            if (message === '') return;
+
+            addMessage('user', message);
+            userInput.value = '';
+
+            setTimeout(() => {
+                addMessage('bot', getResponse(message));
+            }, 1000);
+        }
+
+        function addMessage(sender, text) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add(sender === 'bot' ? 'bot-message' : 'user-message');
+
+            const messageText = document.createElement('p');
+            messageText.textContent = text;
+            messageElement.appendChild(messageText);
+
+            chatBody.appendChild(messageElement);
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+
+        function getResponse(message) {
+            if (step === 0) {
+                destination = message;
+                if (busData[destination]) {
+                    step++;
+                    return `You are traveling to ${destination}. The available buses are:\n${showBuses(destination)}\nPlease choose a bus.`;
+                } else {
+                    return 'Sorry, we do not have buses available for that destination. Please choose another destination.';
+                }
+            } else if (step === 1) {
+                selectedBus = message;
+                if (busData[destination].some(bus => bus.bus === selectedBus)) {
+                    step++;
+                    return `You have selected ${selectedBus}. Do you prefer AC or non-AC?`;
+                } else {
+                    return 'Please choose a valid bus from the list.';
+                }
+            } else if (step === 2) {
+                acPreference = message.toLowerCase();
+                if (acPreference === 'ac' || acPreference === 'non-ac') {
+                    step++;
+                    return `You have chosen ${acPreference} preference. Do you prefer a sleeper bus or a sitting bus?`;
+                } else {
+                    return 'Please choose either "AC" or "non-AC".';
+                }
+            } else if (step === 3) {
+                seatingPreference = message.toLowerCase();
+                if (seatingPreference === 'sleeper' || seatingPreference === 'sitting') {
+                    step++;
+                    return `You have chosen ${seatingPreference} preference. How many persons are traveling?`;
+                } else {
+                    return 'Please choose either "sleeper" or "sitting".';
+                }
+            } else if (step === 4) {
+                numberOfPersons = parseInt(message, 10);
+                if (isNaN(numberOfPersons) || numberOfPersons <= 0) {
+                    return 'Please enter a valid number of persons.';
+                } else {
+                    step++;
+                    return `You have selected ${numberOfPersons} persons traveling to ${destination} on ${selectedBus} (${acPreference}, ${seatingPreference}). The price is $${getPrice(destination, selectedBus, numberOfPersons)}. Thank you for your reservation!`;
+                }
+            } else {
+                return 'I am not sure how to help with that. Could you please specify your travel details?';
+            }
+        }
+
+        function showBuses(destination) {
+            const buses = busData[destination];
+            return buses.map(bus => `${bus.bus}`).join(', ');
+        }
+
+        function getPrice(destination, selectedBus, persons) {
+            const bus = busData[destination].find(bus => bus.bus === selectedBus);
+            return bus.price * persons;
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        function startVoiceRecognition() {
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                userInput.value = transcript;
+                sendMessage();
+            };
+
+            recognition.start();
+        }
+    </script>
+</body>
+</html>
